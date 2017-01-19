@@ -76,6 +76,21 @@ module.exports = function(appPath, appName, verbose, originalDirectory) {
   }
   args.push('react', 'react-dom', '@types/node', '@types/react', '@types/react-dom', '@types/jest');
 
+  // Leonidas Stack specific dependencies
+  args.push(
+    '@types/react-redux',
+    '@types/react-router',
+    '@types/react-router-redux',
+    '@types/redux-actions',
+    'react-dom',
+    'react-redux',
+    'react-router',
+    'react-router-redux',
+    'redux',
+    'redux-actions',
+    'redux-thunk'
+  )
+
   console.log('Installing react and react-dom using ' + command + '...');
   console.log();
 
