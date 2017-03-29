@@ -7,12 +7,14 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
+'use strict';
+
 var fs = require('fs-extra');
 var path = require('path');
 var spawn = require('cross-spawn');
 var chalk = require('chalk');
 
-module.exports = function(appPath, appName, verbose, originalDirectory) {
+module.exports = function(appPath, appName, verbose, originalDirectory, template) {
   var ownPackageName = require(path.join(__dirname, '..', 'package.json')).name;
   var ownPath = path.join(appPath, 'node_modules', ownPackageName);
   var appPackage = require(path.join(appPath, 'package.json'));
@@ -41,7 +43,13 @@ module.exports = function(appPath, appName, verbose, originalDirectory) {
   }
 
   // Copy the files for the user
-  fs.copySync(path.join(ownPath, 'template'), appPath);
+  var templatePath = template ? path.resolve(originalDirectory, template) : path.join(ownPath, 'template');
+  if (fs.existsSync(templatePath)) {
+    fs.copySync(templatePath, appPath);
+  } else {
+    console.error('Could not locate supplied template: ' + chalk.green(templatePath));
+    return;
+  }
 
   // Rename gitignore after the fact to prevent npm from renaming it to .npmignore
   // See: https://github.com/npm/npm/issues/1862
@@ -58,13 +66,11 @@ module.exports = function(appPath, appName, verbose, originalDirectory) {
     }
   });
 
-  // Run yarn or npm for react and react-dom
-  // TODO: having to do two npm/yarn installs is bad, can we avoid it?
   var command;
   var args;
 
   if (useYarn) {
-    command = 'yarn';
+    command = 'yarnpkg';
     args = ['add'];
   } else {
     command = 'npm';
@@ -74,7 +80,11 @@ module.exports = function(appPath, appName, verbose, originalDirectory) {
       verbose && '--verbose'
     ].filter(function(e) { return e; });
   }
-  args.push('react', 'react-dom', '@types/node', '@types/react', '@types/react-dom', '@types/jest');
+
+  var reactDeps = ['react', 'react-dom'];
+  if (!isReactInstalled(appPackage)) {
+    args = args.concat(reactDeps);
+  }
 
   // Leonidas Stack specific dependencies
   args.push(
@@ -82,7 +92,6 @@ module.exports = function(appPath, appName, verbose, originalDirectory) {
     '@types/react-router',
     '@types/react-router-redux',
     '@types/redux-actions',
-    'react-dom',
     'react-redux',
     'react-router',
     'react-router-redux',
@@ -91,53 +100,80 @@ module.exports = function(appPath, appName, verbose, originalDirectory) {
     'redux-thunk'
   )
 
-  console.log('Installing react and react-dom using ' + command + '...');
+  var dependencies = [ '@types/node', '@types/react', '@types/react-dom', '@types/jest'];
+  args = args.concat(dependencies);
+
+  // Install additional template dependencies, if present
+  var templateDependenciesPath = path.join(appPath, '.template.dependencies.json');
+  if (fs.existsSync(templateDependenciesPath)) {
+    var templateDependencies = require(templateDependenciesPath).dependencies;
+    args = args.concat(Object.keys(templateDependencies).map(function (key) {
+      return key + '@' + templateDependencies[key];
+    }));
+    fs.unlinkSync(templateDependenciesPath);
+  }
+
+  // Install react and react-dom for backward compatibility with old CRA cli
+  // which doesn't install react and react-dom along with react-scripts
+  // or template is presetend (via --internal-testing-template)
+  console.log('Installing dependencies using ' + command + '...');
+  console.log(chalk.cyan(args.join(', ')));
   console.log();
 
-  var proc = spawn(command, args, {stdio: 'inherit'});
-  proc.on('close', function (code) {
-    if (code !== 0) {
-      console.error('`' + command + ' ' + args.join(' ') + '` failed');
-      return;
-    }
+  var proc = spawn.sync(command, args, {stdio: 'inherit'});
+  if (proc.status !== 0) {
+    console.error('`' + command + ' ' + args.join(' ') + '` failed');
+    return;
+  }
 
-    // Display the most elegant way to cd.
-    // This needs to handle an undefined originalDirectory for
-    // backward compatibility with old global-cli's.
-    var cdpath;
-    if (originalDirectory &&
-        path.join(originalDirectory, appName) === appPath) {
-      cdpath = appName;
-    } else {
-      cdpath = appPath;
-    }
+  // Display the most elegant way to cd.
+  // This needs to handle an undefined originalDirectory for
+  // backward compatibility with old global-cli's.
+  var cdpath;
+  if (originalDirectory &&
+      path.join(originalDirectory, appName) === appPath) {
+    cdpath = appName;
+  } else {
+    cdpath = appPath;
+  }
 
+  // Change displayed command to yarn instead of yarnpkg
+  var displayedCommand = useYarn ? 'yarn' : 'npm';
+
+  console.log();
+  console.log('Success! Created ' + appName + ' at ' + appPath);
+  console.log('Inside that directory, you can run several commands:');
+  console.log();
+  console.log(chalk.cyan('  ' + displayedCommand + ' start'));
+  console.log('    Starts the development server.');
+  console.log();
+  console.log(chalk.cyan('  ' + displayedCommand + ' run build'));
+  console.log('    Bundles the app into static files for production.');
+  console.log();
+  console.log(chalk.cyan('  ' + displayedCommand + ' test'));
+  console.log('    Starts the test runner.');
+  console.log();
+  console.log(chalk.cyan('  ' + displayedCommand + ' run eject'));
+  console.log('    Removes this tool and copies build dependencies, configuration files');
+  console.log('    and scripts into the app directory. If you do this, you can’t go back!');
+  console.log();
+  console.log('We suggest that you begin by typing:');
+  console.log();
+  console.log(chalk.cyan('  cd'), cdpath);
+  console.log('  ' + chalk.cyan(displayedCommand + ' start'));
+  if (readmeExists) {
     console.log();
-    console.log('Success! Created ' + appName + ' at ' + appPath);
-    console.log('Inside that directory, you can run several commands:');
-    console.log();
-    console.log(chalk.cyan('  ' + command + ' start'));
-    console.log('    Starts the development server.');
-    console.log();
-    console.log(chalk.cyan('  ' + command + ' run build'));
-    console.log('    Bundles the app into static files for production.');
-    console.log();
-    console.log(chalk.cyan('  ' + command + ' test'));
-    console.log('    Starts the test runner.');
-    console.log();
-    console.log(chalk.cyan('  ' + command + ' run eject'));
-    console.log('    Removes this tool and copies build dependencies, configuration files');
-    console.log('    and scripts into the app directory. If you do this, you can’t go back!');
-    console.log();
-    console.log('We suggest that you begin by typing:');
-    console.log();
-    console.log(chalk.cyan('  cd'), cdpath);
-    console.log('  ' + chalk.cyan(command + ' start'));
-    if (readmeExists) {
-      console.log();
-      console.log(chalk.yellow('You had a `README.md` file, we renamed it to `README.old.md`'));
-    }
-    console.log();
-    console.log('Happy hacking!');
-  });
+    console.log(chalk.yellow('You had a `README.md` file, we renamed it to `README.old.md`'));
+  }
+  console.log();
+  console.log('Happy hacking!');
 };
+
+function isReactInstalled(appPackage) {
+  var dependencies = appPackage.dependencies || {};
+
+  return (
+    typeof dependencies.react !== 'undefined' &&
+    typeof dependencies['react-dom'] !== 'undefined'
+  )
+}

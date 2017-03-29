@@ -12,9 +12,38 @@ npm install -g create-react-app
 create-react-app my-app --scripts-version=react-scripts-ts
 cd my-app/
 npm start
-
 ```
+
+## Features
+
+### Code highlighting on error
+When you run `npm run build` the terminal will output the error, including the highlighted sourecode (like babel)! 
+
+![CodeHighlight](https://cloud.githubusercontent.com/assets/175278/22310149/1ee66ccc-e346-11e6-83ff-e3a053701fb4.gif)
+
 ## Changelog
+
+### 1.1.8
+* Fix regression where no `@types` were being installed on init
+
+### 1.1.7
+* Merge facebookincubator/create-react-app@0.9.5 into react-scripts-ts
+* Merge facebookincubator/create-react-app@0.9.4 into react-scripts-ts
+* Merge facebookincubator/create-react-app@0.9.3 into react-scripts-ts
+* Merge facebookincubator/create-react-app@0.9.2 into react-scripts-ts
+* Merge facebookincubator/create-react-app@0.9.1 into react-scripts-ts
+
+### 1.1.6
+* Merge facebookincubator/create-react-app@0.9.0 into react-scripts-ts
+
+### 1.0.6
+* Add missing `cli-highlight` dependency
+
+### 1.0.5
+* Print file names when running `npm run build`
+* Add support for `setupTest.ts`
+* Highlight source code when erroring in `npm run build`
+
 ### 1.0.4
 * Change mentions of `eslint` to `tslint`
 
