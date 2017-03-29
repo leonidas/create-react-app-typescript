@@ -89,12 +89,12 @@ module.exports = function(appPath, appName, verbose, originalDirectory, template
   // Leonidas Stack specific dependencies
   args.push(
     '@types/react-redux',
-    '@types/react-router',
-    '@types/react-router-redux',
+    '@types/react-router@^3.0.0',
+    '@types/react-router-redux@^4.0.0',
     '@types/redux-actions',
     'react-redux',
-    'react-router',
-    'react-router-redux',
+    'react-router@^3.0.0',
+    'react-router-redux@^4.0.0',
     'redux',
     'redux-actions',
     'redux-thunk'
